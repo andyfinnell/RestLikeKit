@@ -110,7 +110,7 @@ struct UpdateUserRequest: ResourceRequest {
 
 In this case, the update operation doesn't return anything, so it's modeled with the special value `Empty`. However, update does take parameters, so they are created as an `Encodable`, `Equatable` struct nested inside the request type. Since the `update` verb is used, they'll be encoded as JSON in the body of the request.
 
-## Creating an API instance
+### Creating an API instance
 
 All requests are made through an `API` instance, which allows common API configuration like headers, base URL, and authentication. These are injected to the `API` through the `dependencies` init parameter, which leverages protocol composition based dependency injection.
 
