@@ -12,7 +12,10 @@ final class HTTPClientTest: XCTestCase {
     override func setUp() {
         super.setUp()
         dependencies = FakeDependencies()
-        subject = HTTPClient(dependencies: dependencies)
+        subject = HTTPClient(logger: dependencies.logger,
+                             urlSession: dependencies.urlSession,
+                             httpRequestEncoder: dependencies.httpRequestEncoder,
+                             httpResponseDecoder: dependencies.httpResponseDecoder)
         request = HTTPRequest<RestLikeKit.Empty>(method: .get,
                                      url: URL(string: "https://example.com")!,
                                      headers: [HTTPHeader.accept: "application/json"],

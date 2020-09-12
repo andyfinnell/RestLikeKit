@@ -10,28 +10,38 @@ public protocol HasHTTPClient {
 }
 
 public final class HTTPClient: HTTPClientType {
-    public typealias Dependencies = HasHTTPRequestEncoder & HasHTTPResponseDecoder
-        & HasURLSessionType & HasLogger
+    private let logger: LoggerType
+    private let urlSession: URLSessionType
+    private let httpRequestEncoder: HTTPRequestEncoderType
+    private let httpResponseDecoder: HTTPResponseDecoderType
     
-    private let dependencies: Dependencies
-    
-    public init(dependencies: Dependencies) {
-        self.dependencies = dependencies
+    public init(logger: LoggerType,
+                urlSession: URLSessionType,
+                httpRequestEncoder: HTTPRequestEncoderType,
+                httpResponseDecoder: HTTPResponseDecoderType) {
+        self.logger = logger
+        self.urlSession = urlSession
+        self.httpRequestEncoder = httpRequestEncoder
+        self.httpResponseDecoder = httpResponseDecoder
     }
     
     public func send<T, R>(request: HTTPRequest<T>, responseFormat: HTTPResponse<R>.Format) -> AnyPublisher<HTTPResponse<R>, Error> {
-        let dependencies = self.dependencies
+        let logger = self.logger
+        let urlSession = self.urlSession
+        let httpRequestEncoder = self.httpRequestEncoder
+        let httpResponseDecoder = self.httpResponseDecoder
+        
         return Deferred {
             Future { promise in
                 var dataTask: URLSessionDataTaskType?
                 do {
-                    dependencies.logger.debug(request, tag: .http)
-                    let urlRequest = try dependencies.httpRequestEncoder.encode(request: request)
-                    dataTask = dependencies.urlSession.dataTask(request: urlRequest) { maybeData, maybeUrlResponse, maybeError in
+                    logger.debug(request, tag: .http)
+                    let urlRequest = try httpRequestEncoder.encode(request: request)
+                    dataTask = urlSession.dataTask(request: urlRequest) { maybeData, maybeUrlResponse, maybeError in
                         do {
                             let rawResponse = HTTPRawResponse(urlResponse: maybeUrlResponse, body: maybeData, error: maybeError, shouldRedactResponseBody: request.shouldRedactResponseBody)
-                            dependencies.logger.debug(rawResponse, tag: .http)
-                            let response = try dependencies.httpResponseDecoder.decode(rawResponse, into: responseFormat)
+                            logger.debug(rawResponse, tag: .http)
+                            let response = try httpResponseDecoder.decode(rawResponse, into: responseFormat)
                             promise(.success(response))
                         } catch let err {
                             promise(.failure(err))

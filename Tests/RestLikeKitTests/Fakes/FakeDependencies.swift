@@ -16,7 +16,10 @@ final class FakeDependencies:
     
     let apiConfig = APIConfig(baseURL: URL(string: "https://example.com/api/")!, baseHeaders: [.apiKey: "valid-api-key"])
     
-    lazy var httpClient: HTTPClientType = HTTPClient(dependencies: self)
+    lazy var httpClient: HTTPClientType = HTTPClient(logger: self.logger,
+                                                     urlSession: self.urlSession,
+                                                     httpRequestEncoder: self.httpRequestEncoder,
+                                                     httpResponseDecoder: self.httpResponseDecoder)
     
     var fakeHTTPRequestEncoder = FakeHTTPRequestEncoder()
     var realHTTPRequestEncoder = HTTPRequestEncoder()

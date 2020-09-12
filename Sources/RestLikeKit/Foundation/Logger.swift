@@ -1,8 +1,19 @@
 import Foundation
 import os
 
-public enum LogTag: String {
-    case http
+public struct LogTag: RawRepresentable, Hashable {
+    public let rawValue: String
+    
+    public static let http = LogTag("http")
+    public static let general = LogTag("general")
+    
+    public init(_ rawValue: String) {
+        self.rawValue = rawValue
+    }
+    
+    public init?(rawValue: String) {
+        self.rawValue = rawValue
+    }
 }
 
 public protocol LoggerType {
@@ -50,7 +61,7 @@ public final class Logger: LoggerType {
 
     private func log(for tag: LogTag) -> OSLog {
         guard let cachedLog = logs[tag] else {
-            let subsystem = Bundle().bundleIdentifier ?? "me.finnell.default"
+            let subsystem = Bundle.main.bundleIdentifier ?? "com.losingfight.restlikekit.default"
             let log = OSLog(subsystem: subsystem, category: tag.rawValue)
             logs[tag] = log
             return log
