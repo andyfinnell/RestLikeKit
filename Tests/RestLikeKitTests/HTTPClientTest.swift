@@ -71,7 +71,8 @@ final class HTTPClientTest: XCTestCase {
             }).store(in: &cancellables)
         
         wait(until: urlSession.dataTask_wasCalled)
-        
+        wait(until: urlSession.dataTask_stubbed.resume_wasCalled)
+
         XCTAssertTrue(httpRequestEncoder.encode_wasCalled)
         XCTAssertTrue(urlSession.dataTask_wasCalled)
         XCTAssertEqual(urlSession.dataTask_wasCalled_withArgs?.request, httpRequestEncoder.encode_stubbed)
