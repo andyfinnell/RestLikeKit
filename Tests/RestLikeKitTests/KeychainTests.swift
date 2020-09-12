@@ -2,6 +2,12 @@ import Foundation
 import XCTest
 @testable import RestLikeKit
 
+// We only turn this on for AppKit because iOS requires an entitlement in order
+//  to access this keychain. Unfortunately, the Swift Package Management does
+//  not provide a way to set entitlements on its test runner app. Therefore
+//  these tests will always fail with `errSecMissingEntitlement` on iOS and tvOS.
+#if canImport(AppKit)
+
 final class KeychainTests: XCTestCase {
     var subject: Keychain!
     
@@ -44,3 +50,5 @@ final class KeychainTests: XCTestCase {
         XCTAssertNil(subject.password(service: "service", account: "frank@example.com"))
     }
 }
+
+#endif
