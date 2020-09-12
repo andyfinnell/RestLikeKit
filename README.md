@@ -112,7 +112,7 @@ In this case, the update operation doesn't return anything, so it's modeled with
 
 ### Creating an API instance
 
-All requests are made through an `API` instance, which allows common API configuration like headers, base URL, and authentication. These are injected to the `API` through the `dependencies` init parameter, which leverages protocol composition based dependency injection.
+All requests are made through an `API` instance, which allows common API configuration like headers, base URL, and authentication. These are injected to the `API` through the `init` method.
 
 First, we need to create the `APIConfig` value that we'll use in the dependencies:
 
@@ -148,31 +148,18 @@ struct AuthenticationStorage: AuthenticationStorageType {
 }
 ```
 
-With our API config and authentication storage created, we can now create our concrete dependencies to inject an API:
+With our API config and authentication storage created, we can now create our API:
 
 ```Swift
-final class APIDependencies: API.Dependencies {
-    lazy var apiConfig: APIConfig = .default
-    lazy var authenticationStorage: AuthenticationStorageType = AuthenticationStorage()
-    lazy var httpClient: HTTPClientType = HTTPClient(logger: self.logger,
-                                                     urlSession: self.urlSession,
-                                                     httpRequestEncoder: self.requestEncoder,
-                                                     httpResponseDecoder: self.responseDecoder)
-    
-    private lazy var logger = Logger()
-    private lazy var urlSession = URLSession.shared
-    private lazy var requestEncoder = HTTPRequestEncoder()
-    private lazy var responseDecoder = HTTPResponseDecoder()
-}
+let httpClient = HTTPClient(logger: Logger(),
+                            urlSession: URLSession.shared,
+                            httpRequestEncoder: HTTPRequestEncoder(),
+                            httpResponseDecoder: HTTPResponseDecoder())
+
+let api = API(httpClient: httpClient, apiConfig: .default, authenticationStorage: AuthenticationStorage())
 ```
 
 The `httpClient` is the only other dependency required by `API` that we haven't already created. There's no reason not to use the `HTTPClient` provided by RestLikeKit, however we may want to swap out a different logger, or more rarely a different encoder or decoder.
-
-With the dependencies created, it's trivial to create the API:
-
-```Swift
-let api = API(dependencies: APIDependencies())
-```
 
 Typically the `api` instance is created once and put in the dependency injection system for anyone code that needs it.
 

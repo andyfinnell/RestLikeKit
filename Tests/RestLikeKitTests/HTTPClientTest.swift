@@ -5,17 +5,19 @@ import XCTest
 
 final class HTTPClientTest: XCTestCase {
     var subject: HTTPClient!
-    var dependencies: FakeDependencies!
     var request: HTTPRequest<RestLikeKit.Empty>!
     var cancellables: Set<AnyCancellable>!
+    var httpRequestEncoder: FakeHTTPRequestEncoder!
+    var urlSession: FakeURLSession!
     
     override func setUp() {
         super.setUp()
-        dependencies = FakeDependencies()
-        subject = HTTPClient(logger: dependencies.logger,
-                             urlSession: dependencies.urlSession,
-                             httpRequestEncoder: dependencies.httpRequestEncoder,
-                             httpResponseDecoder: dependencies.httpResponseDecoder)
+        httpRequestEncoder = FakeHTTPRequestEncoder()
+        urlSession = FakeURLSession()
+        subject = HTTPClient(logger: FakeLogger(),
+                             urlSession: urlSession,
+                             httpRequestEncoder: httpRequestEncoder,
+                             httpResponseDecoder: HTTPResponseDecoder())
         request = HTTPRequest<RestLikeKit.Empty>(method: .get,
                                      url: URL(string: "https://example.com")!,
                                      headers: [HTTPHeader.accept: "application/json"],
@@ -29,7 +31,7 @@ final class HTTPClientTest: XCTestCase {
         var wasSuccess: Bool?
         let completeExpectation = expectation(description: "complete")
         
-        dependencies.fakeHTTPRequestEncoder.encode_stubbed = nil
+        httpRequestEncoder.encode_stubbed = nil
         subject.send(request: request, responseFormat: HTTPResponse<RestLikeKit.Empty>.Format.empty)
             .sink(receiveCompletion: { completion in
                 switch completion {
@@ -42,9 +44,9 @@ final class HTTPClientTest: XCTestCase {
             }, receiveValue: { _ in
             }).store(in: &cancellables)
                 
-        wait(until: dependencies.fakeHTTPRequestEncoder.encode_wasCalled)
+        wait(until: httpRequestEncoder.encode_wasCalled)
 
-        XCTAssertTrue(dependencies.fakeHTTPRequestEncoder.encode_wasCalled)
+        XCTAssertTrue(httpRequestEncoder.encode_wasCalled)
         
         waitForExpectations(timeout: 5.0, handler: nil)
 
@@ -55,7 +57,7 @@ final class HTTPClientTest: XCTestCase {
         var wasSuccess: Bool?
         let completeExpectation = expectation(description: "complete")
 
-        dependencies.fakeHTTPRequestEncoder.encode_stubbed = URLRequest(url: URL(string: "https://example.com")!)
+        httpRequestEncoder.encode_stubbed = URLRequest(url: URL(string: "https://example.com")!)
         subject.send(request: request, responseFormat: HTTPResponse<RestLikeKit.Empty>.Format.empty)
             .sink(receiveCompletion: { completion in
                 switch completion {
@@ -68,15 +70,15 @@ final class HTTPClientTest: XCTestCase {
             }, receiveValue: { _ in
             }).store(in: &cancellables)
         
-        wait(until: dependencies.fakeHTTPRequestEncoder.encode_wasCalled)
+        wait(until: urlSession.dataTask_wasCalled)
         
-        XCTAssertTrue(dependencies.fakeHTTPRequestEncoder.encode_wasCalled)
-        XCTAssertTrue(dependencies.fakeURLSession.dataTask_wasCalled)
-        XCTAssertEqual(dependencies.fakeURLSession.dataTask_wasCalled_withArgs?.request, dependencies.fakeHTTPRequestEncoder.encode_stubbed)
-        XCTAssertTrue(dependencies.fakeURLSession.dataTask_stubbed.resume_wasCalled)
+        XCTAssertTrue(httpRequestEncoder.encode_wasCalled)
+        XCTAssertTrue(urlSession.dataTask_wasCalled)
+        XCTAssertEqual(urlSession.dataTask_wasCalled_withArgs?.request, httpRequestEncoder.encode_stubbed)
+        XCTAssertTrue(urlSession.dataTask_stubbed.resume_wasCalled)
 
-        XCTAssertNotNil(dependencies.fakeURLSession.dataTask_wasCalled_withArgs?.completion)
-        let completion = dependencies.fakeURLSession.dataTask_wasCalled_withArgs?.completion
+        XCTAssertNotNil(urlSession.dataTask_wasCalled_withArgs?.completion)
+        let completion = urlSession.dataTask_wasCalled_withArgs?.completion
         completion?(nil, nil, HTTPError.statusCode(404))
     
         waitForExpectations(timeout: 5.0, handler: nil)
@@ -89,7 +91,7 @@ final class HTTPClientTest: XCTestCase {
         var wasSuccess: Bool?
         let completeExpectation = expectation(description: "complete")
 
-        dependencies.fakeHTTPRequestEncoder.encode_stubbed = URLRequest(url: URL(string: "https://example.com")!)
+        httpRequestEncoder.encode_stubbed = URLRequest(url: URL(string: "https://example.com")!)
         subject.send(request: request, responseFormat: HTTPResponse<RestLikeKit.Empty>.Format.empty)
             .sink(receiveCompletion: { completion in
                 switch completion {
@@ -103,15 +105,15 @@ final class HTTPClientTest: XCTestCase {
                 finalResult = result
             }).store(in: &cancellables)
 
-        wait(until: dependencies.fakeHTTPRequestEncoder.encode_wasCalled)
+        wait(until: httpRequestEncoder.encode_wasCalled)
 
-        XCTAssertTrue(dependencies.fakeHTTPRequestEncoder.encode_wasCalled)
-        XCTAssertTrue(dependencies.fakeURLSession.dataTask_wasCalled)
-        XCTAssertEqual(dependencies.fakeURLSession.dataTask_wasCalled_withArgs?.request, dependencies.fakeHTTPRequestEncoder.encode_stubbed)
-        XCTAssertTrue(dependencies.fakeURLSession.dataTask_stubbed.resume_wasCalled)
+        XCTAssertTrue(httpRequestEncoder.encode_wasCalled)
+        XCTAssertTrue(urlSession.dataTask_wasCalled)
+        XCTAssertEqual(urlSession.dataTask_wasCalled_withArgs?.request, httpRequestEncoder.encode_stubbed)
+        XCTAssertTrue(urlSession.dataTask_stubbed.resume_wasCalled)
 
-        XCTAssertNotNil(dependencies.fakeURLSession.dataTask_wasCalled_withArgs?.completion)
-        let completion = dependencies.fakeURLSession.dataTask_wasCalled_withArgs?.completion
+        XCTAssertNotNil(urlSession.dataTask_wasCalled_withArgs?.completion)
+        let completion = urlSession.dataTask_wasCalled_withArgs?.completion
         let urlResponse = HTTPURLResponse(url: URL(string: "https://example.com")!, statusCode: 200, httpVersion: "1.1", headerFields: ["content-type": "application/json"])
         completion?(nil, urlResponse, nil)
     

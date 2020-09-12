@@ -5,14 +5,21 @@ import XCTest
 
 final class APITest: XCTestCase {
     var subject: API!
-    var dependencies: FakeDependencies!
     var cancellables: Set<AnyCancellable>!
+    var urlSession: FakeURLSession!
+    var authenticationStorage: FakeAuthenticationStorage!
     
     override func setUp() {
         super.setUp()
-        dependencies = FakeDependencies()
-        dependencies.workingHTTPRequestEncoder = dependencies.realHTTPRequestEncoder
-        subject = API(dependencies: dependencies)
+        urlSession = FakeURLSession()
+        authenticationStorage = FakeAuthenticationStorage()
+        
+        subject = API(httpClient: HTTPClient(logger: FakeLogger(),
+                                             urlSession: urlSession,
+                                             httpRequestEncoder: HTTPRequestEncoder(),
+                                             httpResponseDecoder: HTTPResponseDecoder()),
+                      apiConfig: APIConfig(baseURL: URL(string: "https://example.com/api/")!, baseHeaders: [.apiKey: "valid-api-key"]),
+                      authenticationStorage: authenticationStorage)
         cancellables = Set()
     }
     
@@ -42,7 +49,7 @@ final class APITest: XCTestCase {
         let request = TestRequest(email: "frank@example.com")
         let completeExpectation = expectation(description: "complete")
         
-        dependencies.fakeAuthenticationStorage.authenticationHeader_stubbed = "Bearer valid-token"
+        authenticationStorage.authenticationHeader_stubbed = "Bearer valid-token"
         subject.call(request)
             .sink(receiveCompletion: { completion in
                 switch completion {
@@ -55,15 +62,15 @@ final class APITest: XCTestCase {
             }, receiveValue: { _ in
         }).store(in: &cancellables)
         
-        wait(until: dependencies.fakeURLSession.dataTask_wasCalled)
+        wait(until: urlSession.dataTask_wasCalled)
         
-        XCTAssertTrue(dependencies.fakeAuthenticationStorage.authenticationHeader_wasCalled)
-        XCTAssertEqual(dependencies.fakeAuthenticationStorage.authenticationHeader_wasCalled_withArgs, "example.com")
+        XCTAssertTrue(authenticationStorage.authenticationHeader_wasCalled)
+        XCTAssertEqual(authenticationStorage.authenticationHeader_wasCalled_withArgs, "example.com")
         
-        XCTAssertTrue(dependencies.fakeURLSession.dataTask_wasCalled)
-        XCTAssertNotNil(dependencies.fakeURLSession.dataTask_wasCalled_withArgs?.request)
+        XCTAssertTrue(urlSession.dataTask_wasCalled)
+        XCTAssertNotNil(urlSession.dataTask_wasCalled_withArgs?.request)
         
-        let httpRequest = dependencies.fakeURLSession.dataTask_wasCalled_withArgs?.request
+        let httpRequest = urlSession.dataTask_wasCalled_withArgs?.request
         XCTAssertEqual(httpRequest?.url, URL(string: "https://example.com/api/login")!)
         XCTAssertEqual(httpRequest?.httpMethod, "POST")
         XCTAssertEqual(httpRequest?.value(forHTTPHeaderField: "accept"), "application/json")
@@ -72,8 +79,8 @@ final class APITest: XCTestCase {
         XCTAssertEqual(httpRequest?.value(forHTTPHeaderField: "Authorization"), "Bearer valid-token")
         XCTAssertEqual(httpRequest?.httpBody, request.expectedRequestBodyData())
         
-        XCTAssertNotNil(dependencies.fakeURLSession.dataTask_wasCalled_withArgs?.completion)
-        let completion = dependencies.fakeURLSession.dataTask_wasCalled_withArgs!.completion
+        XCTAssertNotNil(urlSession.dataTask_wasCalled_withArgs?.completion)
+        let completion = urlSession.dataTask_wasCalled_withArgs!.completion
         completion(nil, nil, HTTPError.statusCode(404))
     
         waitForExpectations(timeout: 5.0, handler: nil)
@@ -86,7 +93,7 @@ final class APITest: XCTestCase {
         let request = TestRequest(email: "frank@example.com")
         let completeExpectation = expectation(description: "complete")
 
-        dependencies.fakeAuthenticationStorage.authenticationHeader_stubbed = "Bearer valid-token"
+        authenticationStorage.authenticationHeader_stubbed = "Bearer valid-token"
         subject.call(request)
             .sink(receiveCompletion: { completion in
                 completeExpectation.fulfill()
@@ -94,15 +101,15 @@ final class APITest: XCTestCase {
                 finalResult = result.token
             }).store(in: &cancellables)
         
-        wait(until: dependencies.fakeURLSession.dataTask_wasCalled)
+        wait(until: urlSession.dataTask_wasCalled)
 
-        XCTAssertTrue(dependencies.fakeAuthenticationStorage.authenticationHeader_wasCalled)
-        XCTAssertEqual(dependencies.fakeAuthenticationStorage.authenticationHeader_wasCalled_withArgs, "example.com")
+        XCTAssertTrue(authenticationStorage.authenticationHeader_wasCalled)
+        XCTAssertEqual(authenticationStorage.authenticationHeader_wasCalled_withArgs, "example.com")
 
-        XCTAssertTrue(dependencies.fakeURLSession.dataTask_wasCalled)
-        XCTAssertNotNil(dependencies.fakeURLSession.dataTask_wasCalled_withArgs?.request)
+        XCTAssertTrue(urlSession.dataTask_wasCalled)
+        XCTAssertNotNil(urlSession.dataTask_wasCalled_withArgs?.request)
 
-        let httpRequest = dependencies.fakeURLSession.dataTask_wasCalled_withArgs?.request
+        let httpRequest = urlSession.dataTask_wasCalled_withArgs?.request
         XCTAssertEqual(httpRequest?.url, URL(string: "https://example.com/api/login")!)
         XCTAssertEqual(httpRequest?.httpMethod, "POST")
         XCTAssertEqual(httpRequest?.value(forHTTPHeaderField: "accept"), "application/json")
@@ -111,8 +118,8 @@ final class APITest: XCTestCase {
         XCTAssertEqual(httpRequest?.value(forHTTPHeaderField: "Authorization"), "Bearer valid-token")
         XCTAssertEqual(httpRequest?.httpBody, request.expectedRequestBodyData())
 
-        XCTAssertNotNil(dependencies.fakeURLSession.dataTask_wasCalled_withArgs?.completion)
-        let completion = dependencies.fakeURLSession.dataTask_wasCalled_withArgs!.completion
+        XCTAssertNotNil(urlSession.dataTask_wasCalled_withArgs?.completion)
+        let completion = urlSession.dataTask_wasCalled_withArgs!.completion
         let urlResponse = HTTPURLResponse(url: URL(string: "https://example.com/api/login")!, statusCode: 200, httpVersion: "1.1", headerFields: ["content-type": "application/json"])
         let responseData = request.expectedResponseBodyData(response: TestRequest.ResourceType(token: "valid-token"))
         completion(responseData, urlResponse, nil)
@@ -127,7 +134,7 @@ final class APITest: XCTestCase {
         let request = TestRequest(email: "frank@example.com")
         let completeExpectation = expectation(description: "complete")
 
-        dependencies.fakeAuthenticationStorage.authenticationHeader_stubbed = nil
+        authenticationStorage.authenticationHeader_stubbed = nil
         subject.call(request)
             .sink(receiveCompletion: { completion in
                 completeExpectation.fulfill()
@@ -135,15 +142,15 @@ final class APITest: XCTestCase {
                 finalResult = result.token
             }).store(in: &cancellables)
         
-        wait(until: dependencies.fakeURLSession.dataTask_wasCalled)
+        wait(until: urlSession.dataTask_wasCalled)
 
-        XCTAssertTrue(dependencies.fakeAuthenticationStorage.authenticationHeader_wasCalled)
-        XCTAssertEqual(dependencies.fakeAuthenticationStorage.authenticationHeader_wasCalled_withArgs, "example.com")
+        XCTAssertTrue(authenticationStorage.authenticationHeader_wasCalled)
+        XCTAssertEqual(authenticationStorage.authenticationHeader_wasCalled_withArgs, "example.com")
 
-        XCTAssertTrue(dependencies.fakeURLSession.dataTask_wasCalled)
-        XCTAssertNotNil(dependencies.fakeURLSession.dataTask_wasCalled_withArgs?.request)
+        XCTAssertTrue(urlSession.dataTask_wasCalled)
+        XCTAssertNotNil(urlSession.dataTask_wasCalled_withArgs?.request)
 
-        let httpRequest = dependencies.fakeURLSession.dataTask_wasCalled_withArgs?.request
+        let httpRequest = urlSession.dataTask_wasCalled_withArgs?.request
         XCTAssertEqual(httpRequest?.url, URL(string: "https://example.com/api/login")!)
         XCTAssertEqual(httpRequest?.httpMethod, "POST")
         XCTAssertEqual(httpRequest?.value(forHTTPHeaderField: "accept"), "application/json")
@@ -152,8 +159,8 @@ final class APITest: XCTestCase {
         XCTAssertNil(httpRequest?.value(forHTTPHeaderField: "Authorization"))
         XCTAssertEqual(httpRequest?.httpBody, request.expectedRequestBodyData())
 
-        XCTAssertNotNil(dependencies.fakeURLSession.dataTask_wasCalled_withArgs?.completion)
-        let completion = dependencies.fakeURLSession.dataTask_wasCalled_withArgs!.completion
+        XCTAssertNotNil(urlSession.dataTask_wasCalled_withArgs?.completion)
+        let completion = urlSession.dataTask_wasCalled_withArgs!.completion
         let urlResponse = HTTPURLResponse(url: URL(string: "https://example.com/api/login")!, statusCode: 200, httpVersion: "1.1", headerFields: ["content-type": "application/json"])
         let responseData = request.expectedResponseBodyData(response: TestRequest.ResourceType(token: "valid-token"))
         completion(responseData, urlResponse, nil)
@@ -166,19 +173,19 @@ final class APITest: XCTestCase {
     func testShow() {
         let request = ShowRequest(d: "123")
 
-        dependencies.fakeAuthenticationStorage.authenticationHeader_stubbed = "Bearer valid-token"
+        authenticationStorage.authenticationHeader_stubbed = "Bearer valid-token"
         subject.call(request).sink(receiveCompletion: { _ in
             
         }, receiveValue: { _ in
             
         }).store(in: &cancellables)
     
-        wait(until: dependencies.fakeURLSession.dataTask_wasCalled)
+        wait(until: urlSession.dataTask_wasCalled)
 
-        XCTAssertTrue(dependencies.fakeURLSession.dataTask_wasCalled)
-        XCTAssertNotNil(dependencies.fakeURLSession.dataTask_wasCalled_withArgs?.request)
+        XCTAssertTrue(urlSession.dataTask_wasCalled)
+        XCTAssertNotNil(urlSession.dataTask_wasCalled_withArgs?.request)
 
-        let httpRequest = dependencies.fakeURLSession.dataTask_wasCalled_withArgs?.request
+        let httpRequest = urlSession.dataTask_wasCalled_withArgs?.request
         XCTAssertEqual(httpRequest?.url, URL(string: "https://example.com/api/message?d=123")!)
         XCTAssertEqual(httpRequest?.httpMethod, "GET")
         XCTAssertEqual(httpRequest?.value(forHTTPHeaderField: "accept"), "application/json")

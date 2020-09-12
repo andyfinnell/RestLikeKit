@@ -45,22 +45,26 @@ public protocol HasAuthenticationStorage {
 }
 
 public struct API: APIType {
-    public typealias Dependencies = HasHTTPClient & HasAPIConfig & HasAuthenticationStorage
-    
-    private let dependencies: Dependencies
+    private let httpClient: HTTPClientType
+    private let apiConfig: APIConfig
+    private let authenticationStorage: AuthenticationStorageType
     
     public var service: String? {
-        return dependencies.apiConfig.baseURL.host
+        return apiConfig.baseURL.host
     }
     
-    public init(dependencies: Dependencies) {
-        self.dependencies = dependencies
+    public init(httpClient: HTTPClientType,
+                apiConfig: APIConfig,
+                authenticationStorage: AuthenticationStorageType) {
+        self.httpClient = httpClient
+        self.apiConfig = apiConfig
+        self.authenticationStorage = authenticationStorage
     }
     
     public func call<T: ResourceRequest>(_ request: T) -> AnyPublisher<T.ResourceType, Error> where T.ResourceType == Empty {
         makeRequestPublisher(request).flatMap { request -> AnyPublisher<HTTPResponse<Empty>, Error> in
             let responseFormat = HTTPResponse<T.ResourceType>.Format.empty
-            return self.dependencies.httpClient.send(request: request, responseFormat: responseFormat)
+            return self.httpClient.send(request: request, responseFormat: responseFormat)
                 .eraseToAnyPublisher()
         }.map { $0.body }
         .eraseToAnyPublisher()
@@ -69,7 +73,7 @@ public struct API: APIType {
     public func call<T: ResourceRequest>(_ request: T) -> AnyPublisher<T.ResourceType, Error> {
         makeRequestPublisher(request).flatMap { request -> AnyPublisher<HTTPResponse<T.ResourceType>, Error> in
             let responseFormat = HTTPResponse<T.ResourceType>.Format.json
-            return self.dependencies.httpClient.send(request: request, responseFormat: responseFormat)
+            return self.httpClient.send(request: request, responseFormat: responseFormat)
                 .eraseToAnyPublisher()
         }.map { $0.body }
         .eraseToAnyPublisher()
@@ -103,10 +107,10 @@ public struct API: APIType {
     }
     
     private func makeHeaders() -> [HTTPHeader: String] {
-        var allHeaders = dependencies.apiConfig.baseHeaders
+        var allHeaders = apiConfig.baseHeaders
         allHeaders[.accept] = "application/json"
         if let service = self.service,
-            let header = dependencies.authenticationStorage.authenticationHeader(for: service) {
+            let header = authenticationStorage.authenticationHeader(for: service) {
             allHeaders[.authorization] = header
         }
         return allHeaders
@@ -128,7 +132,7 @@ public struct API: APIType {
     }
     
     private func makeUrl<T: ResourceRequest>(_ request: T, with queryItems: [URLQueryItem]?) throws -> URL {
-        guard let relativeUrl = URL(string: request.path, relativeTo: dependencies.apiConfig.baseURL),
+        guard let relativeUrl = URL(string: request.path, relativeTo: apiConfig.baseURL),
             var urlComponents = URLComponents(url: relativeUrl, resolvingAgainstBaseURL: true) else {
                 throw APIError.badUrl
         }
