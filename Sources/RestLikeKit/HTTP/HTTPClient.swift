@@ -1,4 +1,5 @@
 import Foundation
+import BaseKit
 import Combine
 
 public protocol HTTPClientType {

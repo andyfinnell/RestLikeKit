@@ -1,4 +1,5 @@
 import Foundation
+import BaseKit
 @testable import RestLikeKit
 
 final class FakeKeychain: KeychainType {

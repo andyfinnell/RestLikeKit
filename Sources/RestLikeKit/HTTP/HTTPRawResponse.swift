@@ -1,4 +1,5 @@
 import Foundation
+import BaseKit
 
 public struct HTTPRawResponse {
     let urlResponse: URLResponse?

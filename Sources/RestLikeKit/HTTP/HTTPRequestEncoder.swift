@@ -1,4 +1,5 @@
 import Foundation
+import BaseKit
 
 public protocol HTTPRequestEncoderType {
     func encode<T>(request: HTTPRequest<T>) throws -> URLRequest

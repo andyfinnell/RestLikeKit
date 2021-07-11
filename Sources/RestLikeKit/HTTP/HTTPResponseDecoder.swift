@@ -1,4 +1,5 @@
 import Foundation
+import BaseKit
 
 public protocol HTTPResponseDecoderType {
     func decode<T>(_ rawResponse: HTTPRawResponse, into format: HTTPResponse<T>.Format) throws -> HTTPResponse<T>

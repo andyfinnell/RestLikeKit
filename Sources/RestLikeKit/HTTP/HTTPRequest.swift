@@ -1,4 +1,5 @@
 import Foundation
+import BaseKit
 
 public struct HTTPRequest<T: Encodable & Equatable>: Equatable {
     enum Method: String, Hashable {
